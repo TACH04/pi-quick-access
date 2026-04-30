@@ -1,0 +1,18 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Xcode
+# (If you generate an Xcode project via 'swift package generate-xcodeproj')
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+
+# macOS
+.DS_Store
+
+# Local/Temporary files
+*.swp
+*~
+.env
