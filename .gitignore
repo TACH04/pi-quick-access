@@ -16,3 +16,7 @@ DerivedData/
 *.swp
 *~
 .env
+output.jsonl
+
+scratch/
+assets/

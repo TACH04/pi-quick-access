@@ -2,14 +2,21 @@
 import PackageDescription
 
 let package = Package(
-    name: "PiBar",
+    name: "qae",
     platforms: [
         .macOS(.v14)
     ],
+    dependencies: [
+        .package(url: "https://github.com/migueldeicaza/SwiftTerm.git", from: "1.0.7")
+    ],
     targets: [
         .executableTarget(
-            name: "PiBar",
-            path: "Sources/PiBar"
+            name: "qae",
+            dependencies: ["SwiftTerm"],
+            path: "Sources/qae",
+            resources: [
+                .process("Resources")
+            ]
         )
     ]
 )
