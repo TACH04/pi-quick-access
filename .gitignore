@@ -3,7 +3,6 @@
 .swiftpm/
 
 # Xcode
-# (If you generate an Xcode project via 'swift package generate-xcodeproj')
 *.xcodeproj/
 *.xcworkspace/
 xcuserdata/
@@ -12,11 +11,15 @@ DerivedData/
 # macOS
 .DS_Store
 
+# Application Bundles
+*.app/
+QuickAccessAgent.app/
+
 # Local/Temporary files
 *.swp
 *~
 .env
 output.jsonl
 
+# Project Scratch / Local Data
 scratch/
-assets/

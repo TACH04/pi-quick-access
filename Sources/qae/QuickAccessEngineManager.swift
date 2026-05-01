@@ -19,6 +19,30 @@ class QuickAccessEngineManager: ObservableObject {
     
     let terminalView: LocalProcessTerminalView
     
+    private func resolvePath(_ command: String) -> String {
+        let commonPaths = ["/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin"]
+        for path in commonPaths {
+            let fullPath = "\(path)/\(command)"
+            if FileManager.default.fileExists(atPath: fullPath) {
+                return fullPath
+            }
+        }
+        return "/usr/local/bin/\(command)" // Fallback
+    }
+
+    private func getStandardEnvironment() -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        let extraPaths = ["/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+        let currentPath = env["PATH"] ?? ""
+        let newPath = (extraPaths + [currentPath]).joined(separator: ":")
+        env["PATH"] = newPath
+        // Ensure TERM is set for TUI tools
+        if env["TERM"] == nil {
+            env["TERM"] = "xterm-256color"
+        }
+        return env
+    }
+
     init() {
         // Initialize terminal view with a default frame
         self.terminalView = LocalProcessTerminalView(frame: .zero)
@@ -69,39 +93,54 @@ class QuickAccessEngineManager: ObservableObject {
     }
     
     func fetchAvailableModels() {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/local/bin/pi")
-        process.arguments = ["--list-models"]
-        
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        
-        do {
-            try process.run()
-            process.waitUntilExit()
+        Task.detached(priority: .background) {
+            let executablePath = await self.resolvePath("pi")
+            print("QAE: Fetching models using: \(executablePath)")
             
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let output = String(data: data, encoding: .utf8) {
-                let lines = output.components(separatedBy: .newlines)
-                var models: [String] = []
-                for line in lines {
-                    if line.hasPrefix("ollama") {
-                        let components = line.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-                        if components.count >= 2 {
-                            models.append(components[1])
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: executablePath)
+            process.arguments = ["--list-models"]
+            
+            var env = await self.getStandardEnvironment()
+            // Ensure HOME is set as pi-agent likely needs it
+            if env["HOME"] == nil {
+                env["HOME"] = NSHomeDirectory()
+            }
+            process.environment = env
+            
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe // Capture errors too
+            
+            do {
+                try process.run()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                process.waitUntilExit()
+                
+                if let output = String(data: data, encoding: .utf8) {
+                    let lines = output.components(separatedBy: .newlines)
+                    var models: [String] = []
+                    for line in lines {
+                        if line.hasPrefix("ollama") {
+                            let components = line.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+                            if components.count >= 2 {
+                                models.append(components[1])
+                            }
+                        }
+                    }
+                    
+                    print("QAE: Found \(models.count) models")
+                    
+                    await MainActor.run {
+                        self.availableModels = models
+                        if !models.contains(self.selectedModel) && !models.isEmpty {
+                            self.selectedModel = models.first!
                         }
                     }
                 }
-                
-                DispatchQueue.main.async {
-                    self.availableModels = models
-                    if !models.contains(self.selectedModel) && !models.isEmpty {
-                        self.selectedModel = models.first!
-                    }
-                }
+            } catch {
+                print("QAE: Failed to fetch models: \(error)")
             }
-        } catch {
-            print("Failed to fetch models: \(error)")
         }
     }
     
@@ -109,14 +148,9 @@ class QuickAccessEngineManager: ObservableObject {
     func startProcess(isNewSession: Bool = false) {
         guard !isProcessRunning else { return }
         
-        let executable = "/usr/local/bin/pi"
+        let executable = resolvePath("pi")
         
-        // Construct environment with a robust PATH to find node and other tools
-        var env = ProcessInfo.processInfo.environment
-        let extraPaths = ["/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
-        let currentPath = env["PATH"] ?? ""
-        let newPath = (extraPaths + [currentPath]).joined(separator: ":")
-        env["PATH"] = newPath
+        let env = getStandardEnvironment()
         
         // Convert [String: String] to [String] as required by SwiftTerm (usually "KEY=VALUE" format)
         let envArray = env.map { "\($0.key)=\($0.value)" }
@@ -154,7 +188,7 @@ class QuickAccessEngineManager: ObservableObject {
         // 1. Try to tell Ollama to unload the model that was actually running
         if let modelToStop = currentlyRunningModel {
             let stopProc = Process()
-            stopProc.executableURL = URL(fileURLWithPath: "/usr/local/bin/ollama")
+            stopProc.executableURL = URL(fileURLWithPath: resolvePath("ollama"))
             stopProc.arguments = ["stop", modelToStop]
             try? stopProc.run()
         }

@@ -43,7 +43,7 @@ class PopoverManager: NSObject {
     }
     
     private var menuBarIcon: NSImage? {
-        guard let image = Bundle.module.image(forResource: "MenuBarIcon") else {
+        guard let image = Bundle.module.image(forResource: "pi-logo") else {
             return NSImage(systemSymbolName: "engine.combustion", accessibilityDescription: "Quick Access Engine")
         }
         image.isTemplate = true

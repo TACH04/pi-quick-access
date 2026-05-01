@@ -25,6 +25,7 @@ struct TerminalViewWrapper: NSViewRepresentable {
         Coordinator(self)
     }
 
+    @MainActor
     class Coordinator: NSObject, LocalProcessTerminalViewDelegate {
         var parent: TerminalViewWrapper
 
@@ -32,10 +33,9 @@ struct TerminalViewWrapper: NSViewRepresentable {
             self.parent = parent
         }
 
-        func processTerminated(source: TerminalView, exitCode: Int32?) {
-            let manager = self.parent.manager
-            
+        nonisolated func processTerminated(source: TerminalView, exitCode: Int32?) {
             Task { @MainActor in
+                let manager = self.parent.manager
                 let pid = (source as? LocalProcessTerminalView)?.process.shellPid ?? 0
                 manager.isProcessRunning = false
                 if pid > 0 {
@@ -45,15 +45,13 @@ struct TerminalViewWrapper: NSViewRepresentable {
             }
         }
 
-        func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {
-            // SwiftTerm handles this internally mostly
+        nonisolated func sizeChanged(source: LocalProcessTerminalView, newCols: Int, newRows: Int) {
         }
         
-        func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
-            // Optional: update window title
+        nonisolated func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
         }
         
-        func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
+        nonisolated func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
         }
     }
 }
