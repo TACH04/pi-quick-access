@@ -8,11 +8,10 @@ struct ChatView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Image(systemName: "terminal.fill")
-                    .foregroundColor(.accentColor)
-                Text("Pi Agent CLI")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                Image("pi-logo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 24)
                 
                 Spacer()
                 
