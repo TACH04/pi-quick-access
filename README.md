@@ -1,12 +1,12 @@
-# Quick Access Agent
+# Pi Quick Access
 
 [![macOS](https://img.shields.io/badge/platform-macOS-blue.svg)](https://www.apple.com/macos/)
 [![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A premium, lightweight macOS menu bar interface for the **Pi Agent**. Quick Access Agent provides a seamless, terminal-integrated chat experience that sits right in your status bar, allowing you to interact with your local and cloud-based LLMs instantly.
+A premium, lightweight macOS menu bar interface for the **Pi Agent**. Pi Quick Access provides a seamless, terminal-integrated chat experience that sits right in your status bar, allowing you to interact with your local and cloud-based LLMs instantly.
 
-![Quick Access Agent Icon](Sources/qae/Resources/MenuBarIcon.png)
+![Pi Quick Access in Action](assets/screenshot.png)
 
 ## Features
 
@@ -19,9 +19,9 @@ A premium, lightweight macOS menu bar interface for the **Pi Agent**. Quick Acce
 
 ## Prerequisites
 
-Before installing Quick Access Agent, ensure you have the following installed:
+Before installing Pi Quick Access, ensure you have the following installed:
 
-1. **Pi Agent**: The core CLI tool. Quick Access Agent expects the `pi` executable to be located at `/usr/local/bin/pi`.
+1. **Pi Agent**: The core CLI tool. Pi Quick Access expects the `pi` executable to be located at `/usr/local/bin/pi`.
 2. **Ollama**: Required for local model execution. Expected at `/usr/local/bin/ollama`.
 3. **macOS 14.0+**: Leverages modern SwiftUI and AppKit APIs.
 
@@ -31,8 +31,8 @@ Before installing Quick Access Agent, ensure you have the following installed:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/[YOUR_USERNAME]/quick-access-agent.git
-   cd quick-access-agent
+   git clone https://github.com/[YOUR_USERNAME]/pi-quick-access.git
+   cd pi-quick-access
    ```
 
 2. Build and package the application:
