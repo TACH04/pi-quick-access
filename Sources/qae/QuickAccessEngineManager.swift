@@ -7,6 +7,10 @@ class QuickAccessEngineManager: ObservableObject {
     @Published var isProcessRunning = false
     @Published var hasUnreadMessages = false
     
+    @Published var availableModels: [String] = []
+    @Published var selectedModel: String = "gemma4:e4b"
+    
+    
     let terminalView: LocalProcessTerminalView
     
     init() {
@@ -58,6 +62,44 @@ class QuickAccessEngineManager: ObservableObject {
         terminalView.terminal.registerOscHandler(code: 133) { _ in }
     }
     
+    func fetchAvailableModels() {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/local/bin/pi")
+        process.arguments = ["--list-models"]
+        
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8) {
+                let lines = output.components(separatedBy: .newlines)
+                var models: [String] = []
+                for line in lines {
+                    if line.hasPrefix("ollama") {
+                        let components = line.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+                        if components.count >= 2 {
+                            models.append(components[1])
+                        }
+                    }
+                }
+                
+                DispatchQueue.main.async {
+                    self.availableModels = models
+                    if !models.contains(self.selectedModel) && !models.isEmpty {
+                        self.selectedModel = models.first!
+                    }
+                }
+            }
+        } catch {
+            print("Failed to fetch models: \(error)")
+        }
+    }
+    
+    
     func startProcess() {
         guard !isProcessRunning else { return }
         
@@ -73,19 +115,34 @@ class QuickAccessEngineManager: ObservableObject {
         // Convert [String: String] to [String] as required by SwiftTerm (usually "KEY=VALUE" format)
         let envArray = env.map { "\($0.key)=\($0.value)" }
         
-        let args = ["--continue"]
+        var args = ["--continue"]
+        if !selectedModel.isEmpty {
+            args.insert(contentsOf: ["--model", selectedModel], at: 0)
+        }
         
         terminalView.startProcess(executable: executable, args: args, environment: envArray, execName: nil)
         isProcessRunning = true
     }
     
     func stopProcess() {
-        // SwiftTerm doesn't have a direct "stop" but we can terminate the process
-        // or just let it close when the user types exit
+        if isProcessRunning {
+            terminalView.terminate()
+            isProcessRunning = false
+        }
     }
     
     func restartProcess() {
-        // Terminate and start again
-        startProcess()
+        if isProcessRunning {
+            stopProcess()
+            // Clear the terminal screen for a clean start
+            terminalView.terminal.feed(text: "\u{001b}[2J\u{001b}[H") 
+            
+            // Slightly longer delay to ensure SwiftTerm has cleaned up the old process
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.startProcess()
+            }
+        } else {
+            startProcess()
+        }
     }
 }
