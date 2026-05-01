@@ -30,10 +30,10 @@ struct ChatView: View {
                 }
                 
                 Button(action: {
-                    processManager.restartProcess()
+                    processManager.restartProcess(isNewSession: true)
                 }) {
                     Image(systemName: "arrow.clockwise")
-                        .help("Restart Pi")
+                        .help("New Session (Clear Context)")
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, 8)

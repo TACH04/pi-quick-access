@@ -100,7 +100,7 @@ class QuickAccessEngineManager: ObservableObject {
     }
     
     
-    func startProcess() {
+    func startProcess(isNewSession: Bool = false) {
         guard !isProcessRunning else { return }
         
         let executable = "/usr/local/bin/pi"
@@ -115,7 +115,11 @@ class QuickAccessEngineManager: ObservableObject {
         // Convert [String: String] to [String] as required by SwiftTerm (usually "KEY=VALUE" format)
         let envArray = env.map { "\($0.key)=\($0.value)" }
         
-        var args = ["--continue"]
+        var args: [String] = []
+        if !isNewSession {
+            args.append("--continue")
+        }
+        
         if !selectedModel.isEmpty {
             args.insert(contentsOf: ["--model", selectedModel], at: 0)
         }
@@ -131,7 +135,7 @@ class QuickAccessEngineManager: ObservableObject {
         }
     }
     
-    func restartProcess() {
+    func restartProcess(isNewSession: Bool = false) {
         if isProcessRunning {
             stopProcess()
             // Clear the terminal screen for a clean start
@@ -139,10 +143,10 @@ class QuickAccessEngineManager: ObservableObject {
             
             // Slightly longer delay to ensure SwiftTerm has cleaned up the old process
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                self.startProcess()
+                self.startProcess(isNewSession: isNewSession)
             }
         } else {
-            startProcess()
+            startProcess(isNewSession: isNewSession)
         }
     }
 }
