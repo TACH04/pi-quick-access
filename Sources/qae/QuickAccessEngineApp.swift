@@ -19,4 +19,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory) // Hide from dock
         popoverManager = PopoverManager()
     }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        popoverManager.engineManager.stopProcess(isAppExiting: true)
+    }
 }

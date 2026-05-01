@@ -10,6 +10,12 @@ class QuickAccessEngineManager: ObservableObject {
     @Published var availableModels: [String] = []
     @Published var selectedModel: String = "gemma4:e4b"
     
+    // Track all PIDs we've started to ensure we can kill them even if they become orphaned
+    private var activePids = Set<pid_t>()
+    private var pidsLock = NSLock()
+    
+    // Track the model currently being executed to ensure we stop the right one
+    private var currentlyRunningModel: String?
     
     let terminalView: LocalProcessTerminalView
     
@@ -125,14 +131,71 @@ class QuickAccessEngineManager: ObservableObject {
         }
         
         terminalView.startProcess(executable: executable, args: args, environment: envArray, execName: nil)
+        
+        currentlyRunningModel = selectedModel
+        
+        let pid = terminalView.process.shellPid
+        if pid > 0 {
+            pidsLock.lock()
+            activePids.insert(pid)
+            pidsLock.unlock()
+        }
+        
         isProcessRunning = true
     }
     
-    func stopProcess() {
-        if isProcessRunning {
-            terminalView.terminate()
-            isProcessRunning = false
+    func markProcessExited(pid: pid_t) {
+        pidsLock.lock()
+        activePids.remove(pid)
+        pidsLock.unlock()
+    }
+    
+    func stopProcess(isAppExiting: Bool = false) {
+        // 1. Try to tell Ollama to unload the model that was actually running
+        if let modelToStop = currentlyRunningModel {
+            let stopProc = Process()
+            stopProc.executableURL = URL(fileURLWithPath: "/usr/local/bin/ollama")
+            stopProc.arguments = ["stop", modelToStop]
+            try? stopProc.run()
         }
+
+        // 2. Send Ctrl+C to the terminal
+        terminalView.send(data: [0x03][...])
+        
+        pidsLock.lock()
+        let pidsToKill = activePids
+        pidsLock.unlock()
+        
+        // 3. Send SIGTERM to all known active processes (including orphans from previous model switches)
+        for pid in pidsToKill {
+            kill(-pid, SIGTERM)
+            kill(pid, SIGTERM)
+        }
+        
+        terminalView.terminate()
+        
+        if isAppExiting {
+            // Synchronous aggressive cleanup on app exit
+            Thread.sleep(forTimeInterval: 0.5)
+            for pid in pidsToKill {
+                if kill(pid, 0) == 0 {
+                    kill(-pid, SIGKILL)
+                    kill(pid, SIGKILL)
+                }
+            }
+        } else {
+            // Background cleanup for switching models
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                for pid in pidsToKill {
+                    if kill(pid, 0) == 0 {
+                        kill(-pid, SIGKILL)
+                        kill(pid, SIGKILL)
+                    }
+                }
+            }
+        }
+        
+        isProcessRunning = false
     }
     
     func restartProcess(isNewSession: Bool = false) {
@@ -141,8 +204,8 @@ class QuickAccessEngineManager: ObservableObject {
             // Clear the terminal screen for a clean start
             terminalView.terminal.feed(text: "\u{001b}[2J\u{001b}[H") 
             
-            // Slightly longer delay to ensure SwiftTerm has cleaned up the old process
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            // Longer delay to ensure SwiftTerm has cleaned up and Ollama has unloaded the model
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 self.startProcess(isNewSession: isNewSession)
             }
         } else {

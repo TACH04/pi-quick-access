@@ -34,8 +34,13 @@ struct TerminalViewWrapper: NSViewRepresentable {
 
         func processTerminated(source: TerminalView, exitCode: Int32?) {
             let manager = self.parent.manager
+            
             Task { @MainActor in
+                let pid = (source as? LocalProcessTerminalView)?.process.shellPid ?? 0
                 manager.isProcessRunning = false
+                if pid > 0 {
+                    manager.markProcessExited(pid: pid)
+                }
                 print("Pi process terminated with exit code \(exitCode ?? -1)")
             }
         }
